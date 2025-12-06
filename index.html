@@ -10,12 +10,13 @@
         align-items: center;
         height: 100vh;
         font-family: "Courier New", Courier, monospace;
+        overflow: hidden; /* 防止出现滚动条 */
       }
       /*画布容器层*/
       #container {
         position: relative;
-        width: 320px;
-        height: 200px;
+        width: 100vw;
+        height: 100vh;
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* 0 0 20px 模糊半径  rgba(0, 0, 0, 0.5) 阴影颜色 */
       }
       canvas {
@@ -63,7 +64,7 @@
         <button id="generateBtn">生成</button>
       </div>
 
-      <canvas id="myCanvas" width="320" height="200"></canvas>
+      <canvas id="myCanvas"></canvas>
     </div>
 
     <script>
@@ -98,12 +99,25 @@
         return seed / 233280;
       }
 
+      //屏幕自适应逻辑
+      function resize() {
+        const scale = 4;
+        canvas.width = Math.ceil(window.innerWidth / scale);
+        canvas.height = Math.ceil(window.innerHeight / scale);
+
+        ctx.imageSmoothingEnabled = false; //改变画布大小会重置抗锯齿功能，在这里直接关闭即可
+        generateWorld(currentSeedStr); //重新生成是树木以铺满
+      }
+
       //包装生成逻辑为函数
       function generateWorld(userSeedStr) {
+        currentSeedStr = userSeedStr; // 记住当前的种子
         seed = stringToHash(userSeedStr); //重置种子
         forest = []; // 清空森林数组
 
-        for (let i = 0; i < 150; i++) {
+        const density = (canvas.width * canvas.height) / 400; // 树的密度，根据屏幕大小调整
+
+        for (let i = 0; i < density; i++) {
           let yPots = myRandom() * canvas.height;
           let size = (yPots / canvas.height) * 30 + 10;
 
@@ -175,6 +189,8 @@
         if (text.trim() === "") text = "Random"; // 防止空输入
         generateWorld(text);
       };
+
+      window.addEventListener("resize", resize); // 监听窗口变化事件,当用户拖拽窗口时，自动重绘
 
       treeImage.onload = function () {
         generateWorld("Dream"); // 默认种子
