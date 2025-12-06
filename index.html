@@ -27,12 +27,20 @@
         display: block; /* 确保canvas占满容器 */
       }
       /*UI悬浮层*/
-      #ui-layer {
+      #uiLayer {
         position: absolute;
         top: 10px;
         left: 10px;
         display: flex;
         gap: 5px;
+        z-index: 10; /* 确保在最上层 */
+      }
+      #timeDisplay {
+        color: #fff;
+        font-weight: bold;
+        padding: 8px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border: 2px solid #fff;
       }
       input {
         background: rgba(255, 255, 255, 0.8);
@@ -59,9 +67,10 @@
 
   <body>
     <div id="container">
-      <div id="ui-layer">
+      <div id="uiLayer">
         <input type="text" id="seedInput" value="Dream" maxlength="15" />
         <button id="generateBtn">生成</button>
+        <div id="timeDisplay">12:00</div>
       </div>
 
       <canvas id="myCanvas"></canvas>
@@ -97,6 +106,69 @@
       function myRandom() {
         seed = (seed * 9301 + 49297) % 233280;
         return seed / 233280;
+      }
+
+      //颜色混合算法
+      function lerpColor(a, b, amount) {
+        //其中'/ /g'代表寻找全部，“#”进行空值代替，并且将16进制的数转换为10进制
+        const ah = parseInt(a.replace(/#/g, ""), 16),
+          //8位二进制来进行与运算，同1才记录
+          //就比如说你读取 123456 ，但实际记录的时候是 先存的6，因此要右移去找R通道
+          ar = (ah >> 16) & 0xff,
+          ag = (ah >> 8) & 0xff,
+          ab = ah & 0xff,
+          bh = parseInt(b.replace(/#/g, ""), 16),
+          br = (bh >> 16) & 0xff,
+          bg = (bh >> 8) & 0xff,
+          bb = bh & 0xff,
+          rr = ar + (br - ar) * amount,
+          rg = ag + (bg - ag) * amount,
+          rb = ab + (bb - ab) * amount;
+        return (
+          "#" +
+          (((1 << 24) + (rr << 16) + (rg << 8) + rb) | 0).toString(16).slice(1)
+        ); //这个1相当于去占位，任务完成就给他删了，这个|0是为了确保结果是32位整数
+      }
+
+      const skyStates = [
+        { time: 0, name: "午夜", top: "#000022", bottom: "#001133" }, // 0点
+        { time: 5, name: "黎明", top: "#223344", bottom: "#FF9966" }, // 5点
+        { time: 8, name: "清晨", top: "#4488FF", bottom: "#AAEEFF" }, // 8点
+        { time: 12, name: "正午", top: "#87CEEB", bottom: "#E0F7FA" }, // 12点
+        { time: 17, name: "傍晚", top: "#3366CC", bottom: "#FFCC66" }, // 17点
+        { time: 19, name: "黄昏", top: "#220044", bottom: "#FF6633" }, // 19点
+        { time: 21, name: "夜晚", top: "#000033", bottom: "#112244" }, // 21点
+        { time: 24, name: "午夜", top: "#000022", bottom: "#001133" }, // 24点(回到0点)
+      ];
+
+      let gameTime = 12.0; //时间
+
+      function getCurrentSky() {
+        let startState = skyStates[0];
+        let endState = skyStates[0];
+        //获取区域分段
+        for (let i = 0; i < skyStates.length; i++) {
+          if (gameTime < skyStates[i].time) {
+            startState = skyStates[i - 1];
+            endState = skyStates[i];
+            break;
+          }
+        }
+        //计算进度
+        const duration = endState.time - startState.time;
+        const progress = (gameTime - startState.time) / duration;
+        //混合颜色
+        const currentTop = lerpColor(startState.top, endState.top, progress);
+        const currentBottom = lerpColor(
+          startState.bottom,
+          endState.bottom,
+          progress
+        );
+        return {
+          top: currentTop,
+          bottom: currentBottom,
+          name: startState.name,
+        };
       }
 
       //屏幕自适应逻辑
@@ -153,14 +225,26 @@
       let time = 0;
 
       function gameLoop() {
+        // A. 更新游戏时间 (让时间流逝！)
+        gameTime += 0.01;
+        if (gameTime >= 24) gameTime = 0; // 过了24点回到0点
+        // B. 计算天空颜色
+        const sky = getCurrentSky();
+        // C. 更新UI上的时间显示
+        const hours = Math.floor(gameTime); //取整数
+        const minutes = Math.floor((gameTime - hours) * 60);
+        document.getElementById("timeDisplay").innerText = `${hours
+          .toString()
+          .padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+        // D. 绘制背景
         let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, "#87CEEB");
-        gradient.addColorStop(1, "#E0F7FA");
+        gradient.addColorStop(0, sky.top); // 顶部颜色
+        gradient.addColorStop(1, sky.bottom); // 底部颜色
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // E. 绘制物体
         time += 0.05;
-
         forest.forEach((obj) => {
           let sway = 0;
           if (obj.type !== "stone") {
@@ -191,6 +275,7 @@
       };
 
       window.addEventListener("resize", resize); // 监听窗口变化事件,当用户拖拽窗口时，自动重绘
+      //第一个是监听到的事件类型，第二个是触发的函数
 
       treeImage.onload = function () {
         generateWorld("Dream"); // 默认种子
