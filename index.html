@@ -9,16 +9,62 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
+        font-family: "Courier New", Courier, monospace;
+      }
+      /*画布容器层*/
+      #container {
+        position: relative;
+        width: 320px;
+        height: 200px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* 0 0 20px 模糊半径  rgba(0, 0, 0, 0.5) 阴影颜色 */
       }
       canvas {
         border: 2px solid #333;
         image-rendering: pixelated;
+        width: 100%;
+        height: 100%;
+        display: block; /* 确保canvas占满容器 */
+      }
+      /*UI悬浮层*/
+      #ui-layer {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        gap: 5px;
+      }
+      input {
+        background: rgba(255, 255, 255, 0.8);
+        border: 2px solid #000;
+        padding: 4px;
+        width: 100px;
+        font-family: inherit;
+        font-weight: bold;
+      }
+      button {
+        background: #ff69b4; /* 粉色按钮 */
+        border: 2px solid #000;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: bold;
+        box-shadow: 2px 2px 0px #000; /* 复古立体感 */
+      }
+      button:active {
+        transform: translate(2px, 2px); /* 点击时的下压效果 */
+        box-shadow: none;
       }
     </style>
   </head>
 
   <body>
-    <canvas id="myCanvas" width="320" height="200"></canvas>
+    <div id="container">
+      <div id="ui-layer">
+        <input type="text" id="seedInput" value="Dream" maxlength="15" />
+        <button id="generateBtn">生成</button>
+      </div>
+
+      <canvas id="myCanvas" width="320" height="200"></canvas>
+    </div>
 
     <script>
       const canvas = document.getElementById("myCanvas");
@@ -32,8 +78,6 @@
       stoneImage.src = "./Assets/stone.png";
       flowerImage.src = "./Assets/flower.png";
 
-      let currentSeedStr = "Forest"; //通过这个字符串来提供种子效果
-
       // 作用：把 "MySecretForest" 变成一个巨大的数字，作为初始种子
       function stringToHash(str) {
         let hash = 0;
@@ -45,8 +89,8 @@
         return Math.abs(hash); //返回一个非负整数
       }
 
-      // 初始化种子数字
-      let seed = stringToHash(currentSeedStr);
+      let seed = 0;
+      let forest = []; //森林数组，用来存储所有的树
 
       // 伪随机数生成器，生成0~1之间的随机数，实际提供一个稳定的序列，而不是单个值
       function myRandom() {
@@ -54,40 +98,45 @@
         return seed / 233280;
       }
 
-      let forest = []; //森林数组，用来存储所有的树
+      //包装生成逻辑为函数
+      function generateWorld(userSeedStr) {
+        seed = stringToHash(userSeedStr); //重置种子
+        forest = []; // 清空森林数组
 
-      for (let i = 0; i < 150; i++) {
-        let yPots = myRandom() * canvas.height;
-        let size = (yPots / canvas.height) * 30 + 10;
+        for (let i = 0; i < 150; i++) {
+          let yPots = myRandom() * canvas.height;
+          let size = (yPots / canvas.height) * 30 + 10;
 
-        let dice = myRandom();
-        let type = "tree";
-        let img = treeImage;
+          let dice = myRandom();
+          let type = "tree";
+          let img = treeImage;
 
-        if (dice < 0.15) {
-          type = "stone";
-          img = stoneImage;
-          size = size * 0.5;
-        } else if (dice < 0.4) {
-          type = "flower";
-          img = flowerImage;
-          size = size * 0.3;
+          if (dice < 0.15) {
+            type = "stone";
+            img = stoneImage;
+            size = size * 0.5;
+          } else if (dice < 0.4) {
+            type = "flower";
+            img = flowerImage;
+            size = size * 0.3;
+          }
+
+          forest.push({
+            x: myRandom() * canvas.width,
+            y: yPots,
+            size: size,
+            swayOffset: myRandom() * Math.PI * 2, // 晃动幅度不同，这里加了一个2PI
+            type: type,
+            img: img,
+          });
         }
 
-        forest.push({
-          x: myRandom() * canvas.width,
-          y: yPots,
-          size: size,
-          swayOffset: myRandom() * Math.PI * 2, // 晃动幅度不同，这里加了一个2PI
-          type: type,
-          img: img,
-        });
+        forest.sort((a, b) => a.y - b.y); // 按 y 坐标排序，先画小的后画大的防止不正常遮盖
+        console.log(`世界已重置，种子: ${userSeedStr}`);
       }
 
       //定义全局时间变量来控制风
       let time = 0;
-
-      forest.sort((a, b) => a.y - b.y); // 按 y 坐标排序，先画小的后画大的防止不正常遮盖
 
       function gameLoop() {
         let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -106,16 +155,29 @@
               sway *= 0.5;
             }
           }
-          ctx.drawImage(obj.img, obj.x + sway, obj.y, obj.size, obj.size); //绘制树，10*10的矩形，Rect是矩形缩写
-
+          if (obj.img.complete) {
+            ctx.drawImage(obj.img, obj.x + sway, obj.y, obj.size, obj.size); //绘制树，10*10的矩形，Rect是矩形缩写
+          }
           //ctx.fillStyle = "#228B22";
           //ctx.fillRect(obj.x, obj.y, obj.size, obj.size); //绘制树，10*10的矩形，Rect是矩形缩写
-        }); //随机分布
+        });
 
         //是浏览器提供的最强 API。它会尽可能配合显示器的刷新率（比如 60Hz），保证动画如丝般顺滑
         requestAnimationFrame(gameLoop); //递归调用，下一帧继续运行 gameLoop
       }
+
+      const btn = document.getElementById("generateBtn");
+      const input = document.getElementById("seedInput");
+
+      //监听点击事件
+      btn.onclick = function () {
+        let text = input.value;
+        if (text.trim() === "") text = "Random"; // 防止空输入
+        generateWorld(text);
+      };
+
       treeImage.onload = function () {
+        generateWorld("Dream"); // 默认种子
         gameLoop();
       };
     </script>
