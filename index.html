@@ -25,24 +25,30 @@
       const ctx = canvas.getContext("2d"); //从上下文获取2D模式 画笔
 
       const treeImage = new Image();
-      treeImage.src = "./Assets/tree.png";
+      const stoneImage = new Image();
+      const flowerImage = new Image();
 
-      let currentSeedStr = "MySecretForest";
+      treeImage.src = "./Assets/tree.png";
+      stoneImage.src = "./Assets/stone.png";
+      flowerImage.src = "./Assets/flower.png";
+
+      let currentSeedStr = "Forest"; //通过这个字符串来提供种子效果
 
       // 作用：把 "MySecretForest" 变成一个巨大的数字，作为初始种子
       function stringToHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
-          let char = str.charCodeAt(i);
-          hash = (hash << 5) - hash + char;
-          hash = hash & hash; // Convert to 32bit integer
+          let char = str.charCodeAt(i); //获取字符串的AsCII码
+          hash = (hash << 5) - hash + char; //左移五位 = *32，减去1个hash 31, 质数减少哈希冲突
+          hash = hash & hash; // 确保是32位整数，其余不要
         }
-        return Math.abs(hash);
+        return Math.abs(hash); //返回一个非负整数
       }
 
       // 初始化种子数字
       let seed = stringToHash(currentSeedStr);
 
+      // 伪随机数生成器，生成0~1之间的随机数，实际提供一个稳定的序列，而不是单个值
       function myRandom() {
         seed = (seed * 9301 + 49297) % 233280;
         return seed / 233280;
@@ -50,22 +56,38 @@
 
       let forest = []; //森林数组，用来存储所有的树
 
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 150; i++) {
         let yPots = myRandom() * canvas.height;
-
         let size = (yPots / canvas.height) * 30 + 10;
+
+        let dice = myRandom();
+        let type = "tree";
+        let img = treeImage;
+
+        if (dice < 0.15) {
+          type = "stone";
+          img = stoneImage;
+          size = size * 0.5;
+        } else if (dice < 0.4) {
+          type = "flower";
+          img = flowerImage;
+          size = size * 0.3;
+        }
+
         forest.push({
           x: myRandom() * canvas.width,
           y: yPots,
           size: size,
           swayOffset: myRandom() * Math.PI * 2, // 晃动幅度不同，这里加了一个2PI
+          type: type,
+          img: img,
         });
       }
 
       //定义全局时间变量来控制风
       let time = 0;
 
-      forest.sort((a, b) => a.y - b.y); // 按 y 坐标排序
+      forest.sort((a, b) => a.y - b.y); // 按 y 坐标排序，先画小的后画大的防止不正常遮盖
 
       function gameLoop() {
         let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -76,13 +98,18 @@
 
         time += 0.05;
 
-        forest.forEach((tree) => {
-          let sway = Math.sin(time + tree.swayOffset) * 2; //摆动幅度
-
-          ctx.drawImage(treeImage, tree.x + sway, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
+        forest.forEach((obj) => {
+          let sway = 0;
+          if (obj.type !== "stone") {
+            sway = Math.sin(time + obj.swayOffset) * 2; //摆动幅度
+            if (obj.type === "flower") {
+              sway *= 0.5;
+            }
+          }
+          ctx.drawImage(obj.img, obj.x + sway, obj.y, obj.size, obj.size); //绘制树，10*10的矩形，Rect是矩形缩写
 
           //ctx.fillStyle = "#228B22";
-          //ctx.fillRect(tree.x, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
+          //ctx.fillRect(obj.x, obj.y, obj.size, obj.size); //绘制树，10*10的矩形，Rect是矩形缩写
         }); //随机分布
 
         //是浏览器提供的最强 API。它会尽可能配合显示器的刷新率（比如 60Hz），保证动画如丝般顺滑
