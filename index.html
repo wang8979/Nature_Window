@@ -88,6 +88,17 @@
       stoneImage.src = "./Assets/stone.png";
       flowerImage.src = "./Assets/flower.png";
 
+      const dayAudio = new Audio("./Assets/day.mp3");
+      const nightAudio = new Audio("./Assets/night.mp3");
+
+      dayAudio.loop = true; //设置循环播放
+      nightAudio.loop = true;
+
+      dayAudio.volume = 0;
+      nightAudio.volume = 0;
+
+      let audioStarted = false; //声音是否启动
+
       // 作用：把 "MySecretForest" 变成一个巨大的数字，作为初始种子
       function stringToHash(str) {
         let hash = 0;
@@ -221,6 +232,26 @@
         console.log(`世界已重置，种子: ${userSeedStr}`);
       }
 
+      function updateAudioMixing() {
+        if (!audioStarted) return;
+
+        let dayVolume = 0;
+
+        //规定6点到18点为白天，其他为晚上
+        if (gameTime >= 6 && gameTime < 18) {
+          dayVolume = 1;
+        } else if (gameTime > 5 && gameTime < 6) {
+          dayVolume = gameTime - 5;
+        } else if (gameTime > 17 && gameTime < 18) {
+          dayVolume = 1 - (gameTime - 17);
+        } else {
+          dayVolume = 0;
+        }
+        let nightVolume = 1 - dayVolume;
+        dayAudio.volume = Math.max(0, Math.min(1, dayVolume)); //最大音量设为1
+        nightAudio.volume = Math.max(0, Math.min(1, nightVolume));
+      }
+
       //定义全局时间变量来控制风
       let time = 0;
 
@@ -228,6 +259,9 @@
         // A. 更新游戏时间 (让时间流逝！)
         gameTime += 0.01;
         if (gameTime >= 24) gameTime = 0; // 过了24点回到0点
+
+        updateAudioMixing(); //调节音量
+
         // B. 计算天空颜色
         const sky = getCurrentSky();
         // C. 更新UI上的时间显示
@@ -272,6 +306,25 @@
         let text = input.value;
         if (text.trim() === "") text = "Random"; // 防止空输入
         generateWorld(text);
+
+        //尝试播放声音
+        if (!audioStarted) {
+          dayAudio
+            .play()
+            .then(() => {
+              console.log("白天音效启动");
+            })
+            .catch((e) => console.log("音效播放失败:", e));
+          nightAudio
+            .play()
+            .then(() => {
+              console.log("晚上音效启动");
+            })
+            .catch((e) => console.log("音效播放失败:", e));
+
+          audioStarted = true;
+          btn.innerText = "生成 (♪)"; // 改个名字提示有声音了
+        }
       };
 
       window.addEventListener("resize", resize); // 监听窗口变化事件,当用户拖拽窗口时，自动重绘
@@ -279,6 +332,7 @@
 
       treeImage.onload = function () {
         generateWorld("Dream"); // 默认种子
+        resize();
         gameLoop();
       };
     </script>
