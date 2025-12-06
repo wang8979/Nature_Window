@@ -24,35 +24,52 @@
       const canvas = document.getElementById("myCanvas");
       const ctx = canvas.getContext("2d"); //从上下文获取2D模式 画笔
 
+      const treeImage = new Image();
+      treeImage.src = "./Assets/tree.png";
+
       let forest = []; //森林数组，用来存储所有的树
-      for (let i = 0; i < 50; i++) {
+
+      for (let i = 0; i < 100; i++) {
+        let yPots = Math.random() * canvas.height;
+
+        let size = (yPots / canvas.height) * 30 + 10;
         forest.push({
           x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          speed: Math.random() * 2 + 0.5,
-          size: Math.random() * 3 + 1,
+          y: yPots,
+          size: size,
+          swayOffset: Math.random() * Math.PI * 2, // 晃动幅度不同，这里加了一个2PI
         });
       }
 
+      //定义全局时间变量来控制风
+      let time = 0;
+
+      forest.sort((a, b) => a.y - b.y); // 按 y 坐标排序
+
       function gameLoop() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); //清楚画布，从0，0开始清除
+        let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#87CEEB");
+        gradient.addColorStop(1, "#E0F7FA");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        time += 0.05;
 
         forest.forEach((tree) => {
-          tree.y += tree.speed;
+          let sway = Math.sin(time + tree.swayOffset) * 2; //摆动幅度
 
-          if (tree.y > canvas.height) {
-            tree.y = 0;
-            tree.x = Math.random() * canvas.width;
-          }
+          ctx.drawImage(treeImage, tree.x + sway, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
 
-          ctx.fillStyle = "#228B22";
-          ctx.fillRect(tree.x, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
+          //ctx.fillStyle = "#228B22";
+          //ctx.fillRect(tree.x, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
         }); //随机分布
 
         //是浏览器提供的最强 API。它会尽可能配合显示器的刷新率（比如 60Hz），保证动画如丝般顺滑
         requestAnimationFrame(gameLoop); //递归调用，下一帧继续运行 gameLoop
       }
-      gameLoop();
+      treeImage.onload = function () {
+        gameLoop();
+      };
     </script>
   </body>
 </html>
