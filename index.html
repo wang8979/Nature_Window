@@ -4,7 +4,7 @@
     <style>
       body {
         margin: 0;
-        background-color: #999;
+        background-color: #000;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -24,22 +24,30 @@
       const canvas = document.getElementById("myCanvas");
       const ctx = canvas.getContext("2d"); //从上下文获取2D模式 画笔
 
-      let treeX = 150; //树的初始坐标
-      let treeY = 0;
+      let forest = []; //森林数组，用来存储所有的树
+      for (let i = 0; i < 50; i++) {
+        forest.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          speed: Math.random() * 2 + 0.5,
+          size: Math.random() * 3 + 1,
+        });
+      }
 
       function gameLoop() {
         ctx.clearRect(0, 0, canvas.width, canvas.height); //清楚画布，从0，0开始清除
 
-        treeY = treeY + 1;
-        treeX = treeX + 1; //树向右移动
+        forest.forEach((tree) => {
+          tree.y += tree.speed;
 
-        if (treeY > 200) {
-          treeY = 0;
-          treeX = Math.random() * 300; //0~1之间
-        }
+          if (tree.y > canvas.height) {
+            tree.y = 0;
+            tree.x = Math.random() * canvas.width;
+          }
 
-        ctx.fillStyle = "#228B22";
-        ctx.fillRect(treeX, treeY, 10, 20); //绘制树，10*10的矩形，Rect是矩形缩写
+          ctx.fillStyle = "#228B22";
+          ctx.fillRect(tree.x, tree.y, tree.size, tree.size); //绘制树，10*10的矩形，Rect是矩形缩写
+        }); //随机分布
 
         //是浏览器提供的最强 API。它会尽可能配合显示器的刷新率（比如 60Hz），保证动画如丝般顺滑
         requestAnimationFrame(gameLoop); //递归调用，下一帧继续运行 gameLoop
